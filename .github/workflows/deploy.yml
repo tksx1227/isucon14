@@ -1,12 +1,15 @@
 name: ISUCON14 Deploy
+run-name: ${{ github.ref_name }} - ${{ github.sha }}
 on:
-  push:
-    branches:
-      - 'main'
-    paths:
-      - '!.github/**/*'
+  # TODO: 本番前にコメントを外す
+  # push:
+  #   branches:
+  #     - 'main'
+  #   paths-ignore:
+  #     - '.github/**'
+  #     - '.gitignore'
+  #     - 'README.md'
   workflow_dispatch:
-env:
 permissions:
   contents: read
 
@@ -24,35 +27,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
       - name: execute deploy shell script
         uses: appleboy/ssh-action@v1.2.0
         env:
-          WORK_DIR: '/home/isucon'
+          # TODO: 各環境変数は分かり次第書き換える
           TARGET_SORUCE_VERSION: ${{ github.ref_name }}
-          ISUCON_APP_NAME: 'isucondition'  # TODO: 分かり次第書き換える
-          ISUCON_SERVICE_NAME_GO: 'isucondition.go.service'  # TODO: 分かり次第書き換える
+          PROJECT_ROOT: '/home/isucon/isuumo'
+          ISUCON_GO_APP_ROOT: '/home/isucon/isuumo/webapp/go'
+          ISUCON_APP_NAME: 'isuumo'  
+          ISUCON_GO_SERVICE_NAME: 'isuumo.go.service'
+          GOROOT: '/home/isucon/local/go'
+          PATH: '/home/isucon/local/python/bin:/home/isucon/local/go/bin:/home/isucon/go/bin:/home/isucon/local/node/bin:/home/isucon/local/perl/bin:/home/isucon/local/ruby/bin:/home/isucon/local/php/bin:/home/isucon/.deno/bin:/home/isucon/.cargo/bin:/home/isucon/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin'
         with:
+          debug: true
           host: ${{ matrix.host }}
           username: isucon
           port: 22
           key: ${{ secrets.SSH_KEY }}
-          envs: WORK_DIR,TARGET_SORUCE_VERSION,ISUCON_APP_NAME,ISUCON_SERVICE_NAME_GO
+          envs: TARGET_SORUCE_VERSION,PROJECT_ROOT,ISUCON_GO_APP_ROOT,ISUCON_APP_NAME,ISUCON_GO_SERVICE_NAME,GOROOT,PATH
+          request_pty: true
           script_stop: true
           script: |
             # 操作対象のブランチに対して最新のソースをプルする
-            git -C ${WORK_DIR} fetch origin ${TARGET_SORUCE_VERSION}
-            git -C ${WORK_DIR} checkout ${TARGET_SORUCE_VERSION}
-            git -C ${WORK_DIR} pull origin ${TARGET_SORUCE_VERSION}
+            git -C ${PROJECT_ROOT} fetch origin ${TARGET_SORUCE_VERSION}
+            git -C ${PROJECT_ROOT} checkout ${TARGET_SORUCE_VERSION}
 
             # 各種サービスを再起動する
             sudo systemctl restart nginx.service
             sudo systemctl restart mysql.service
 
             # アプリケーションをビルドする
-            go build -o /home/isucon/webapp/go/${ISUCON_APP_NAME} /home/isucon/webapp/go/main.go
+            cd ${ISUCON_GO_APP_ROOT}
+            go mod tidy
+            go build -o ${ISUCON_APP_NAME} ${ISUCON_GO_APP_ROOT}/*.go
 
             # アプリケーションを再起動する
-            sudo systemctl restart ${ISUCON_SERVICE_NAME_GO}
+            sudo systemctl restart ${ISUCON_GO_SERVICE_NAME}
