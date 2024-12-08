@@ -43,6 +43,7 @@ CREATE TABLE chair_locations
   chair_id   VARCHAR(26) NOT NULL COMMENT '椅子ID',
   latitude   INTEGER     NOT NULL COMMENT '経度',
   longitude  INTEGER     NOT NULL COMMENT '緯度',
+  location POINT AS (ST_POINT(longitude, latitude)) STORED,
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '登録日時',
   PRIMARY KEY (id)
 )
@@ -85,6 +86,7 @@ CREATE TABLE rides
   chair_id              VARCHAR(26) NULL     COMMENT '割り当てられた椅子ID',
   pickup_latitude       INTEGER     NOT NULL COMMENT '配車位置(経度)',
   pickup_longitude      INTEGER     NOT NULL COMMENT '配車位置(緯度)',
+  pickup_location POINT AS (ST_POINT(pickup_longitude, pickup_latitude)) STORED,
   destination_latitude  INTEGER     NOT NULL COMMENT '目的地(経度)',
   destination_longitude INTEGER     NOT NULL COMMENT '目的地(緯度)',
   evaluation            INTEGER     NULL     COMMENT '評価',
@@ -148,6 +150,7 @@ CREATE INDEX idx_user_id_created_at ON rides (user_id, created_at);
 CREATE INDEX idx_chair_id ON rides (chair_id);
 CREATE INDEX idx_chair_id_updated_at ON rides (chair_id, updated_at);
 CREATE INDEX idx_chair_id_created_at ON rides (chair_id, created_at);
+CREATE SPATIAL INDEX idx_pickup_location ON rides (pickup_location);
 
 CREATE INDEX idx_ride_id ON ride_statuses (ride_id);
 CREATE INDEX idx_ride_id_app_sent_at_created_at ON ride_statuses (ride_id, app_sent_at, created_at);
@@ -157,3 +160,5 @@ CREATE INDEX idx_user_id ON payment_tokens (user_id);
 
 CREATE INDEX idx_owner_id ON chairs (owner_id);
 CREATE INDEX idx_access_token ON chairs (access_token);
+
+CREATE SPATIAL INDEX idx_location ON chair_locations (location);
