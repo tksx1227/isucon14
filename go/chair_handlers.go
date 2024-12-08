@@ -45,12 +45,37 @@ func chairPostChairs(w http.ResponseWriter, r *http.Request) {
 	chairID := ulid.Make().String()
 	accessToken := secureRandomStr(32)
 
-	_, err := db.ExecContext(
+	// トランザクションを追加
+	tx, err := db.Beginx()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer tx.Rollback()
+
+	// chairの登録
+	_, err = tx.ExecContext(
 		ctx,
 		"INSERT INTO chairs (id, owner_id, name, model, is_active, access_token) VALUES (?, ?, ?, ?, ?, ?)",
 		chairID, owner.ID, req.Name, req.Model, false, accessToken,
 	)
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// chair_mileageの登録
+	_, err = tx.ExecContext(
+		ctx,
+		"INSERT INTO chair_mileage (chair_id, distance) VALUES (?, ?)",
+		chairID, 0,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -104,6 +129,16 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 
 	chair := ctx.Value("chair").(*Chair)
 
+	// 更新前の椅子の座標を取得する
+	prevLocation := &ChairLocation{}
+	if err := db.GetContext(ctx, prevLocation, `SELECT * FROM chair_locations WHERE chair_id = ?`, chair.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// 更新前と現在のマンハッタン距離を算出する
+	distance := calculateDistance(prevLocation.Latitude, prevLocation.Longitude, req.Latitude, req.Longitude)
+
 	tx, err := db.Beginx()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -111,18 +146,28 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	chairLocationID := ulid.Make().String()
+	// 現在の座標を更新する
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
-		chairLocationID, chair.ID, req.Latitude, req.Longitude,
+		`INSERT INTO chair_locations (chair_id, latitude, longitude) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE latitude=latitude, longitude=longitude`, // UPSERTにする
+		chair.ID, req.Latitude, req.Longitude,
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// 椅子の総走行距離を更新する
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE chair_mileage SET distance = ? WHERE chair_id = ?`,
+		chair.ID, distance,
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	location := &ChairLocation{}
-	if err := tx.GetContext(ctx, location, `SELECT * FROM chair_locations WHERE id = ?`, chairLocationID); err != nil {
+	if err := tx.GetContext(ctx, location, `SELECT * FROM chair_locations WHERE chair_id = ?`, chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -226,7 +271,7 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 
 	var user *User
 	if u, er := userCache.Get(ride.UserID); er == nil {
-		if v,ok := u.(*User); ok {
+		if v, ok := u.(*User); ok {
 			user = v
 		}
 	}

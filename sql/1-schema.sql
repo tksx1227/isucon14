@@ -135,6 +135,18 @@ CREATE TABLE coupons
 )
   COMMENT 'クーポンテーブル';
 
+-- 走行距離管理用のテーブルを作成
+DROP TABLE IF EXISTS chair_mileage;
+CREATE TABLE chair_mileage
+(
+  chair_id   VARCHAR(26) NOT NULL COMMENT '割り当てられた椅子ID',
+  distance   INTEGER NOT NULL COMMENT '総走行距離',
+  updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '最終走行距離更新日時',
+  PRIMARY KEY (chair_id),
+  UNIQUE (chair_id)
+)
+  COMMENT '椅子ごとの総走行距離テーブル';
+
 
 CREATE INDEX idx_code ON coupons (code);
 CREATE INDEX idx_user_id_code_used_by ON coupons (user_id, code, used_by);
