@@ -28,6 +28,7 @@ func requestPaymentGatewayPostPayment(ctx context.Context, paymentGatewayURL str
 	}
 
 	// 失敗したらとりあえずリトライ
+	// TODO: FIXME対応
 	// FIXME: 社内決済マイクロサービスのインフラに異常が発生していて、同時にたくさんリクエストすると変なことになる可能性あり
 	retry := 0
 	for {

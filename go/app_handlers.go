@@ -211,6 +211,7 @@ func appGetRides(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items := []getAppRidesResponseItem{}
+	//TODO: N+1解消する
 	for _, ride := range rides {
 		status, err := getLatestRideStatus(ctx, tx, ride.ID)
 		if err != nil {
@@ -883,6 +884,7 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nearbyChairs := []appGetNearbyChairsResponseChair{}
+	// TODO: N+1
 	for _, chair := range chairs {
 		if !chair.IsActive {
 			continue
@@ -962,6 +964,9 @@ func calculateFare(pickupLatitude, pickupLongitude, destLatitude, destLongitude 
 	return initialFare + meteredFare
 }
 
+// AIの要約
+// 乗車料金を計算する関数
+// 具体的には「初乗り料金 + 距離に応じた料金」を計算し、適用可能なクーポン割引がある場合はその割引額を差し引いた最終料金を算出
 func calculateDiscountedFare(ctx context.Context, tx *sqlx.Tx, userID string, ride *Ride, pickupLatitude, pickupLongitude, destLatitude, destLongitude int) (int, error) {
 	var coupon Coupon
 	discount := 0
