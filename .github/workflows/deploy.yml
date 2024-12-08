@@ -1,0 +1,64 @@
+name: ISUCON14 Deploy
+run-name: ${{ github.ref_name }} - ${{ github.sha }}
+on:
+  push:
+    branches:
+      - 'main'
+    paths-ignore:
+      - '.github/**'
+      - '.gitignore'
+      - 'README.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: .
+
+jobs:
+  deploy:
+    strategy:
+      fail-fast: true
+      matrix:
+        host: ['54.248.101.27', '57.182.76.100', '35.79.48.100']  # TODO: 本番で与えられる３台のホストで置き替える
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: execute deploy shell script
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          # TODO: 各環境変数は分かり次第書き換える
+          TARGET_SORUCE_VERSION: ${{ github.ref_name }}
+          PROJECT_ROOT: '/home/isucon/webapp'
+          ISUCON_GO_APP_ROOT: '/home/isucon/webapp/go'
+          ISUCON_APP_NAME: 'isuride'  
+          ISUCON_GO_SERVICE_NAME: 'isuride-go.service'
+          GOROOT: '' # NOTE: ホストに設定されてなかった
+          PATH: '/home/isucon/local/python/bin:/home/isucon/local/perl/bin:/home/isucon/webapp/perl/local/bin:/home/isucon/local/ruby/bin:/home/isucon/local/php/bin:/home/isucon/local/php/sbin:/home/isucon/.cargo/bin:/home/isucon/local/node/bin:/home/isucon/local/golang/bin:/home/isucon/.local/bin:/home/isucon/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin'
+        with:
+          debug: true
+          host: ${{ matrix.host }}
+          username: isucon
+          port: 22
+          key: ${{ secrets.SSH_KEY }}
+          envs: TARGET_SORUCE_VERSION,PROJECT_ROOT,ISUCON_GO_APP_ROOT,ISUCON_APP_NAME,ISUCON_GO_SERVICE_NAME,GOROOT,PATH
+          request_pty: true
+          script_stop: true
+          script: |
+            # 操作対象のブランチに対して最新のソースをローカルに落とす
+            git -C ${PROJECT_ROOT} fetch origin ${TARGET_SORUCE_VERSION}
+            git -C ${PROJECT_ROOT} checkout ${TARGET_SORUCE_VERSION}
+
+            # 各種サービスを再起動する
+            sudo systemctl restart nginx.service
+            sudo systemctl restart mysql.service
+
+            # アプリケーションをビルドする
+            cd ${ISUCON_GO_APP_ROOT}
+            go mod tidy
+            go build -o ${ISUCON_APP_NAME} ${ISUCON_GO_APP_ROOT}/*.go
+
+            # アプリケーションを再起動する
+            sudo systemctl restart ${ISUCON_GO_SERVICE_NAME}
