@@ -50,6 +50,7 @@ jobs:
             # 操作対象のブランチに対して最新のソースをローカルに落とす
             git -C ${PROJECT_ROOT} fetch origin ${TARGET_SORUCE_VERSION}
             git -C ${PROJECT_ROOT} checkout ${TARGET_SORUCE_VERSION}
+            git -C ${PROJECT_ROOT} merge remotes/origin/${TARGET_SORUCE_VERSION}
 
             # 各種サービスを再起動する
             sudo systemctl restart nginx.service
