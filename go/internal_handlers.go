@@ -21,32 +21,26 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 		SELECT r.id as ride_id, c.id as chair_id
 		FROM rides r
 		CROSS JOIN (
-			SELECT cl1.* 
+			SELECT cl1.*
 			FROM chair_locations cl1
-			INNER JOIN (
-				SELECT chair_id, MAX(created_at) as latest_at
+			JOIN (
+				SELECT chair_id, MAX(created_at) as max_created_at
 				FROM chair_locations
 				GROUP BY chair_id
 			) cl2 ON cl1.chair_id = cl2.chair_id 
-			AND cl1.created_at = cl2.latest_at
+			AND cl1.created_at = cl2.max_created_at
 		) cl
 		JOIN chairs c ON c.id = cl.chair_id
 		WHERE 
 			r.chair_id IS NULL
 			AND c.is_active = TRUE
-			AND c.id NOT IN (
-				SELECT chair_id 
+			AND NOT EXISTS (
+				SELECT 1 
 				FROM rides r2 
-				WHERE r2.chair_id IS NOT NULL
-					AND r2.id IN (
-					SELECT ride_id 
-					FROM (
-						SELECT ride_id, COUNT(chair_sent_at) = 6 AS completed 
-						FROM ride_statuses 
-						GROUP BY ride_id
-					) status_count 
-				WHERE completed = FALSE
-				)
+				JOIN ride_statuses rs ON r2.id = rs.ride_id
+				WHERE r2.chair_id = c.id
+				GROUP BY r2.id
+				HAVING COUNT(rs.chair_sent_at) < 6
 			)
 		ORDER BY ST_Distance_Sphere(r.pickup_location, cl.location) ASC
 		LIMIT 1
