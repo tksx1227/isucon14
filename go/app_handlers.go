@@ -94,6 +94,7 @@ func appPostUsers(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
+		userCache.Set(inviter.ID, &inviter)
 
 		// 招待クーポン付与
 		_, err = tx.ExecContext(
