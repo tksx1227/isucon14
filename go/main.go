@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -67,6 +68,11 @@ func setup() http.Handler {
 		panic(err)
 	}
 	db = _db
+
+	// データベース接続プールの設定
+	db.SetMaxOpenConns(25)                 // 最大同時接続数
+	db.SetMaxIdleConns(25)                 // アイドル状態で保持する接続の最大数
+	db.SetConnMaxLifetime(5 * time.Minute) // 接続の最大有効期間
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
