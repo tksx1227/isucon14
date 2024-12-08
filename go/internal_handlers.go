@@ -9,6 +9,7 @@ import (
 // このAPIをインスタンス内から一定間隔で叩かせることで、椅子とライドをマッチングさせる
 func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	// TODO: メモに書いてある通り
 	// MEMO: 一旦最も待たせているリクエストに適当な空いている椅子マッチさせる実装とする。おそらくもっといい方法があるはず…
 	ride := &Ride{}
 	if err := db.GetContext(ctx, ride, `SELECT * FROM rides WHERE chair_id IS NULL ORDER BY created_at LIMIT 1`); err != nil {
@@ -22,6 +23,7 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 
 	matched := &Chair{}
 	empty := false
+	// TODO: 10
 	for i := 0; i < 10; i++ {
 		if err := db.GetContext(ctx, matched, "SELECT * FROM chairs INNER JOIN (SELECT id FROM chairs WHERE is_active = TRUE ORDER BY RAND() LIMIT 1) AS tmp ON chairs.id = tmp.id LIMIT 1"); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
