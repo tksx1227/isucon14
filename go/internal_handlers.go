@@ -36,7 +36,7 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 				)
 				AND rs.status != 'COMPLETED'
 			)
-		ORDER BY ST_Distance_Sphere(r.pickup_location, cl.location) ASC
+		ORDER BY ST_Distance_Sphere(r.pickup_location, cl.location) ASC, cl.created_at DESC
 		LIMIT 1
 	`
 
