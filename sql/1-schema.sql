@@ -139,7 +139,7 @@ CREATE TABLE coupons
 DROP TABLE IF EXISTS chair_mileage;
 CREATE TABLE chair_mileage
 (
-  chair_id   VARCHAR(26) NULL COMMENT '割り当てられた椅子ID',
+  chair_id   VARCHAR(26) NOT NULL COMMENT '割り当てられた椅子ID',
   distance   INTEGER NOT NULL COMMENT '総走行距離',
   updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '最終走行距離更新日時',
   PRIMARY KEY (chair_id),
