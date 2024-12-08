@@ -109,35 +109,105 @@ func ownerGetSales(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	chairs := []Chair{}
-	if err := tx.SelectContext(ctx, &chairs, "SELECT * FROM chairs WHERE owner_id = ?", owner.ID); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
+	// chairs := []Chair{}
+	// if err := tx.SelectContext(ctx, &chairs, "SELECT * FROM chairs WHERE owner_id = ?", owner.ID); err != nil {
+	// 	writeError(w, http.StatusInternalServerError, err)
+	// 	return
+	// }
 
 	res := ownerGetSalesResponse{
 		TotalSales: 0,
 	}
 
-	modelSalesByModel := map[string]int{}
-	// TODO: N+1
-	for _, chair := range chairs {
-		rides := []Ride{}
-		if err := tx.SelectContext(ctx, &rides, "SELECT rides.* FROM rides JOIN ride_statuses ON rides.id = ride_statuses.ride_id WHERE chair_id = ? AND status = 'COMPLETED' AND updated_at BETWEEN ? AND ? + INTERVAL 999 MICROSECOND", chair.ID, since, until); err != nil {
-			writeError(w, http.StatusInternalServerError, err)
-			return
+	// modelSalesByModel := map[string]int{}
+	// // TODO: N+1
+	// for _, chair := range chairs {
+	// 	rides := []Ride{}
+	// 	if err := tx.SelectContext(ctx, &rides, "SELECT rides.* FROM rides JOIN ride_statuses ON rides.id = ride_statuses.ride_id WHERE chair_id = ? AND status = 'COMPLETED' AND updated_at BETWEEN ? AND ? + INTERVAL 999 MICROSECOND", chair.ID, since, until); err != nil {
+	// 		writeError(w, http.StatusInternalServerError, err)
+	// 		return
+	// 	}
+
+	// 	sales := sumSales(rides)
+	// 	res.TotalSales += sales
+
+	// 	res.Chairs = append(res.Chairs, chairSales{
+	// 		ID:    chair.ID,
+	// 		Name:  chair.Name,
+	// 		Sales: sales,
+	// 	})
+
+	// 	modelSalesByModel[chair.Model] += sales
+	// }
+
+	// 専用の構造体を作成
+	type RideWithChair struct {
+		Ride
+		ChairName  string `db:"chair_name"`
+		ChairModel string `db:"chair_model"`
+	}
+	
+	type ChairRides struct {
+		ChairID    string
+		ChairName  string
+		ChairModel string
+		Rides      []Ride
+	}
+	
+	// メインの処理
+	ridesWithChair := []RideWithChair{}
+	query := `
+		SELECT 
+			rides.*, 
+			c.name AS chair_name,
+			c.model AS chair_model
+		FROM rides 
+			JOIN ride_statuses rs
+				ON rides.id = rs.ride_id 
+			INNER JOIN chairs AS c
+				ON rides.chair_id = c.id
+		WHERE c.owner_id = ?
+			AND rs.status = 'COMPLETED'  -- テーブルを明示
+			AND rs.updated_at BETWEEN ?  -- updatedのテーブルも明示
+			AND ? + INTERVAL 999 MICROSECOND
+	`
+	if err := tx.SelectContext(ctx, &ridesWithChair, query, owner.ID, since, until); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	
+	// chairIDごとにデータをグループ化
+	chairRidesMap := make(map[string]*ChairRides)
+	for _, r := range ridesWithChair {
+		if !r.ChairID.Valid {
+			continue
 		}
-
-		sales := sumSales(rides)
-		res.TotalSales += sales
-
+		
+		chairID := r.ChairID.String
+		if _, exists := chairRidesMap[chairID]; !exists {
+			chairRidesMap[chairID] = &ChairRides{
+				ChairID:    chairID,
+				ChairName:  r.ChairName,
+				ChairModel: r.ChairModel,
+				Rides:      []Ride{},
+			}
+		}
+		chairRidesMap[chairID].Rides = append(chairRidesMap[chairID].Rides, r.Ride)
+	}
+	
+	// 集計処理
+	modelSalesByModel := map[string]int{}
+	for _, chairRides := range chairRidesMap {
+		sales := sumSales(chairRides.Rides)
+		
 		res.Chairs = append(res.Chairs, chairSales{
-			ID:    chair.ID,
-			Name:  chair.Name,
+			ID:    chairRides.ChairID,
+			Name:  chairRides.ChairName,
 			Sales: sales,
 		})
-
-		modelSalesByModel[chair.Model] += sales
+	
+		modelSalesByModel[chairRides.ChairModel] += sales
+		res.TotalSales += sales
 	}
 
 	models := []modelSales{}
