@@ -70,9 +70,9 @@ func setup() http.Handler {
 	db = _db
 
 	// データベース接続プールの設定
-	db.SetMaxOpenConns(35)                 // 最大同時接続数
-	db.SetMaxIdleConns(35)                 // アイドル状態で保持する接続の最大数
-	db.SetConnMaxLifetime(5 * time.Minute) // 接続の最大有効期間
+	db.SetMaxOpenConns(100)                  // 最大同時接続数
+	db.SetMaxIdleConns(100)                  // アイドル状態で保持する接続の最大数
+	db.SetConnMaxLifetime(100 * time.Second) // 接続の最大有効期間
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
