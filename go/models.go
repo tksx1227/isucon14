@@ -26,6 +26,7 @@ type ChairLocation struct {
 	ChairID   string    `db:"chair_id"`
 	Latitude  int       `db:"latitude"`
 	Longitude int       `db:"longitude"`
+	Location []byte    `db:"location"`
 	CreatedAt time.Time `db:"created_at"`
 }
 
@@ -53,6 +54,7 @@ type Ride struct {
 	ChairID              sql.NullString `db:"chair_id"`
 	PickupLatitude       int            `db:"pickup_latitude"`
 	PickupLongitude      int            `db:"pickup_longitude"`
+	PickUpLocation 	 []byte         `db:"pickup_location"`
 	DestinationLatitude  int            `db:"destination_latitude"`
 	DestinationLongitude int            `db:"destination_longitude"`
 	Evaluation           *int           `db:"evaluation"`
