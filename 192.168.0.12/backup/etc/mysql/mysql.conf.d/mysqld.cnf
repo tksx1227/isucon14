@@ -76,17 +76,3 @@ log_error = /var/log/mysql/error.log
 max_binlog_size   = 100M
 # binlog_do_db		= include_database_name
 # binlog_ignore_db	= include_database_name
-
-# スロークエリログの設定
-# slow_query_log = OFF
-slow_query_log = ON
-
-# スロークエリと判定する秒数
-# long_query_time = 10
-long_query_time = 0
-
-# スロークエリログの出力先
-log_slow_queries = /var/log/mysql/slow-query.log
-
-# 任意のホストからの接続を許可する
-bind_address = 0.0.0.0
