@@ -26,15 +26,18 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 			r.chair_id IS NULL
 			AND c.is_active = TRUE
 			AND c.id NOT IN (
-				SELECT DISTINCT chair_id
-				FROM rides r2
-				JOIN ride_statuses rs ON r2.id = rs.ride_id
-				WHERE rs.created_at = (
-					SELECT MAX(created_at)
-					FROM ride_statuses
-					WHERE ride_id = r2.id
-				)
-				AND rs.status != 'COMPLETED'
+				SELECT chair_id 
+				FROM rides r2 
+				WHERE r2.chair_id IS NOT NULL
+					AND r2.id IN (
+					SELECT ride_id 
+					FROM (
+						SELECT ride_id, COUNT(chair_sent_at) = 6 AS completed 
+						FROM ride_statuses 
+						GROUP BY ride_id
+					) status_count 
+				WHERE completed = FALSE
+)
 			)
 		ORDER BY ST_Distance_Sphere(r.pickup_location, cl.location) ASC, cl.created_at DESC
 		LIMIT 1
