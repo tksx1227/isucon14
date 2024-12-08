@@ -162,13 +162,13 @@ func ownerGetSales(w http.ResponseWriter, r *http.Request) {
 			c.name AS chair_name,
 			c.model AS chair_model
 		FROM rides 
-			JOIN ride_statuses 
-				ON rides.id = ride_statuses.ride_id 
+			JOIN ride_statuses rs
+				ON rides.id = rs.ride_id 
 			INNER JOIN chairs AS c
 				ON rides.chair_id = c.id
 		WHERE c.owner_id = ?
-			AND status = 'COMPLETED' 
-			AND updated_at BETWEEN ? 
+			AND rs.status = 'COMPLETED'  -- テーブルを明示
+			AND rs.updated_at BETWEEN ?  -- updatedのテーブルも明示
 			AND ? + INTERVAL 999 MICROSECOND
 	`
 	if err := tx.SelectContext(ctx, &ridesWithChair, query, owner.ID, since, until); err != nil {
