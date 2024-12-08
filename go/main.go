@@ -75,7 +75,7 @@ func setup() http.Handler {
 	db.SetConnMaxLifetime(5 * time.Minute) // 接続の最大有効期間
 
 	mux := chi.NewRouter()
-	mux.Use(middleware.Logger)
+	// mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	mux.HandleFunc("POST /api/initialize", postInitialize)
 
